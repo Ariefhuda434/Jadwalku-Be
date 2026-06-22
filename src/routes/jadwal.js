@@ -7,9 +7,25 @@ const router = express.Router();
 router.use(verifyToken);
 
 router.get('/', (req, res) => {
-  const jadwal = db.prepare(
-    "SELECT * FROM jadwal WHERE user_id = ? ORDER BY CASE hari WHEN 'Senin' THEN 1 WHEN 'Selasa' THEN 2 WHEN 'Rabu' THEN 3 WHEN 'Kamis' THEN 4 WHEN 'Jumat' THEN 5 WHEN 'Sabtu' THEN 6 WHEN 'Minggu' THEN 7 END, jam_mulai"
-  ).all(req.user.id);
+  const { search, hari } = req.query;
+
+  let query = "SELECT * FROM jadwal WHERE user_id = ?";
+  const params = [req.user.id];
+
+  if (search && search.trim()) {
+    const keyword = `%${search.trim()}%`;
+    query += " AND (mata_kuliah LIKE ? OR dosen LIKE ? OR ruang LIKE ?)";
+    params.push(keyword, keyword, keyword);
+  }
+
+  if (hari) {
+    query += " AND hari = ?";
+    params.push(hari);
+  }
+
+  query += " ORDER BY CASE hari WHEN 'Senin' THEN 1 WHEN 'Selasa' THEN 2 WHEN 'Rabu' THEN 3 WHEN 'Kamis' THEN 4 WHEN 'Jumat' THEN 5 WHEN 'Sabtu' THEN 6 WHEN 'Minggu' THEN 7 END, jam_mulai";
+
+  const jadwal = db.prepare(query).all(...params);
 
   res.json(jadwal);
 });
