@@ -1,15 +1,17 @@
 const { makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
 
 let sock = null;
-let qrCode = null;
+let qrDataURL = null;
 let connectionStatus = 'disconnected';
-let onQRChange = null;
+let onStatusChange = null;
+let lastQrString = null;
 
 const authDir = path.resolve(__dirname, '..', 'wa_auth');
 
-async function initWhatsApp() {
+async function initWhatsApp(io) {
   if (!fs.existsSync(authDir)) {
     fs.mkdirSync(authDir, { recursive: true });
   }
@@ -20,31 +22,43 @@ async function initWhatsApp() {
     auth: state,
     printQRInTerminal: false,
     browser: ['JadwalKu', 'Chrome', '1.0.0'],
+    markOnlineOnConnect: true,
   });
 
   sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('connection.update', (update) => {
+  sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
-    if (qr) {
-      qrCode = qr;
+    if (qr && qr !== lastQrString) {
+      lastQrString = qr;
+      try {
+        qrDataURL = await QRCode.toDataURL(qr, { width: 300, margin: 2 });
+      } catch {
+        qrDataURL = null;
+      }
       connectionStatus = 'waiting_scan';
-      if (onQRChange) onQRChange(qr);
+      if (io) io.emit('whatsapp:qr', qrDataURL);
+      console.log('[WA] QR code baru generated - scan dengan WhatsApp kamu');
     }
 
     if (connection) {
       if (connection === 'open') {
         connectionStatus = 'connected';
-        qrCode = null;
-        if (onQRChange) onQRChange(null);
+        qrDataURL = null;
+        lastQrString = null;
+        if (io) io.emit('whatsapp:status', 'connected');
+        console.log('[WA] Tersambung!');
       } else if (connection === 'close') {
         const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
         connectionStatus = 'disconnected';
+        qrDataURL = null;
+        lastQrString = null;
+        if (io) io.emit('whatsapp:status', 'disconnected');
+        console.log('[WA] Terputus' + (shouldReconnect ? ', reconnect dalam 5s...' : ''));
         if (shouldReconnect) {
-          setTimeout(initWhatsApp, 5000);
+          setTimeout(() => initWhatsApp(io), 5000);
         }
-        if (onQRChange) onQRChange(null);
       }
     }
   });
@@ -62,11 +76,7 @@ async function sendMessage(to, text) {
 }
 
 function getStatus() {
-  return { status: connectionStatus, qr: qrCode };
+  return { status: connectionStatus, qr: qrDataURL };
 }
 
-function setQRListener(fn) {
-  onQRChange = fn;
-}
-
-module.exports = { initWhatsApp, sendMessage, getStatus, setQRListener };
+module.exports = { initWhatsApp, sendMessage, getStatus };

@@ -261,4 +261,49 @@ router.put('/:id/members/:userId/role', (req, res) => {
   res.json({ message: 'Role berhasil diubah.' });
 });
 
+router.get('/:id/tugas', (req, res) => {
+  const member = db.prepare(
+    'SELECT * FROM group_members WHERE group_id = ? AND user_id = ?'
+  ).get(req.params.id, req.user.id);
+
+  if (!member) {
+    return res.status(403).json({ message: 'Anda bukan anggota grup ini.' });
+  }
+
+  const tugas = db.prepare(`
+    SELECT t.*, u.username as creator_name,
+           COALESCE(ts.status, 'pending') as submission_status
+    FROM tugas t
+    JOIN users u ON u.id = t.user_id
+    LEFT JOIN tugas_submissions ts ON ts.tugas_id = t.id AND ts.user_id = ?
+    WHERE t.group_id = ?
+    ORDER BY t.deadline ASC
+  `).all(req.user.id, req.params.id);
+
+  const counts = db.prepare(`
+    SELECT ts.status, COUNT(*) as count
+    FROM tugas_submissions ts
+    JOIN tugas t ON t.id = ts.tugas_id
+    WHERE t.group_id = ? AND ts.status = 'selesai'
+    GROUP BY ts.tugas_id
+  `).all(req.params.id);
+
+  const submissionCounts = {};
+  for (const c of counts) {
+    submissionCounts[c.tugas_id] = c.count;
+  }
+
+  const totalMembers = db.prepare(
+    'SELECT COUNT(*) as count FROM group_members WHERE group_id = ?'
+  ).get(req.params.id).count;
+
+  res.json({
+    tugas: tugas.map(t => ({
+      ...t,
+      submission_count: submissionCounts[t.id] || 0,
+      total_members: totalMembers,
+    })),
+  });
+});
+
 module.exports = router;

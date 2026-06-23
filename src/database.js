@@ -119,4 +119,23 @@ try {
   // Kolom sudah ada
 }
 
+try {
+  db.exec("ALTER TABLE tugas ADD COLUMN group_id INTEGER REFERENCES groups_table(id) ON DELETE SET NULL");
+} catch {
+  // Kolom sudah ada
+}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tugas_submissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tugas_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'selesai')),
+    submitted_at DATETIME,
+    FOREIGN KEY (tugas_id) REFERENCES tugas(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(tugas_id, user_id)
+  );
+`);
+
 module.exports = db;

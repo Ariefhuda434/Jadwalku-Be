@@ -18,6 +18,7 @@ const whatsappRoutes = require('./routes/whatsapp');
 const { generateNotifications } = require('./notificationService');
 const setupSocket = require('./socket');
 const { initWhatsApp } = require('./whatsappService');
+const { checkAndRemind } = require('./deadlineReminder');
 
 const app = express();
 const server = http.createServer(app);
@@ -48,6 +49,8 @@ app.get('/', (req, res) => {
 server.listen(PORT, () => {
   generateNotifications();
   setInterval(generateNotifications, 6 * 60 * 60 * 1000);
-  initWhatsApp().catch(() => {});
+  setTimeout(checkAndRemind, 10 * 1000);
+  setInterval(checkAndRemind, 60 * 60 * 1000);
+  initWhatsApp(io).catch(() => {});
   console.log(`Server berjalan di http://localhost:${PORT}`);
 });
