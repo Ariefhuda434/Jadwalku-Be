@@ -1,3 +1,4 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '..', '.env') });
 const bcrypt = require('bcryptjs');
 const db = require('./src/database');
 
@@ -22,17 +23,17 @@ if (existingJadwal.count > 0) {
   console.log('Data jadwal sudah ada, skipping...');
 } else {
   const jadwalData = [
-    { hari: 'Senin', mata_kuliah: 'Basis Data', jam_mulai: '08:00', jam_selesai: '09:30', ruang: 'Lab Komputer A', dosen: 'Anis' },
-    { hari: 'Senin', mata_kuliah: 'Pemrograman Web', jam_mulai: '10:00', jam_selesai: '12:30', ruang: 'Ruang 301', dosen: 'Fiqa' },
-    { hari: 'Selasa', mata_kuliah: 'Struktur Data', jam_mulai: '09:00', jam_selesai: '10:30', ruang: 'Ruang 201', dosen: 'Anis' },
-    { hari: 'Selasa', mata_kuliah: 'Sistem Operasi', jam_mulai: '13:00', jam_selesai: '15:00', ruang: 'Lab Sistem', dosen: 'Fiqa' },
-    { hari: 'Rabu', mata_kuliah: 'Matematika Diskrit', jam_mulai: '07:30', jam_selesai: '09:00', ruang: 'Ruang 101', dosen: 'Anis' },
-    { hari: 'Rabu', mata_kuliah: 'Jaringan Komputer', jam_mulai: '10:00', jam_selesai: '12:00', ruang: 'Lab Jaringan', dosen: 'Fiqa' },
-    { hari: 'Kamis', mata_kuliah: 'Rekayasa Perangkat Lunak', jam_mulai: '08:00', jam_selesai: '10:00', ruang: 'Ruang 302', dosen: 'Anis' },
-    { hari: 'Kamis', mata_kuliah: 'Kecerdasan Buatan', jam_mulai: '13:30', jam_selesai: '15:30', ruang: 'Lab AI', dosen: 'Fiqa' },
-    { hari: 'Jumat', mata_kuliah: 'Interaksi Manusia & Komputer', jam_mulai: '09:00', jam_selesai: '10:30', ruang: 'Ruang 202', dosen: 'Anis' },
-    { hari: 'Jumat', mata_kuliah: 'Praktikum Basis Data', jam_mulai: '11:00', jam_selesai: '13:00', ruang: 'Lab Komputer B', dosen: 'Fiqa' },
-    { hari: 'Sabtu', mata_kuliah: 'Statistika', jam_mulai: '08:00', jam_selesai: '10:00', ruang: 'Ruang 102', dosen: 'Anis' },
+    { hari: 'Senin', mata_kuliah: 'Basis Data', jam_mulai: '08:00', jam_selesai: '09:30', ruang: 'Lab Komputer A', dosen: 'Prof. Pratama' },
+    { hari: 'Senin', mata_kuliah: 'Pemrograman Web', jam_mulai: '10:00', jam_selesai: '12:30', ruang: 'Ruang 301', dosen: 'Dr. Wijaya' },
+    { hari: 'Selasa', mata_kuliah: 'Struktur Data', jam_mulai: '09:00', jam_selesai: '10:30', ruang: 'Ruang 201', dosen: 'Prof. Pratama' },
+    { hari: 'Selasa', mata_kuliah: 'Sistem Operasi', jam_mulai: '13:00', jam_selesai: '15:00', ruang: 'Lab Sistem', dosen: 'Dr. Wijaya' },
+    { hari: 'Rabu', mata_kuliah: 'Matematika Diskrit', jam_mulai: '07:30', jam_selesai: '09:00', ruang: 'Ruang 101', dosen: 'Prof. Pratama' },
+    { hari: 'Rabu', mata_kuliah: 'Jaringan Komputer', jam_mulai: '10:00', jam_selesai: '12:00', ruang: 'Lab Jaringan', dosen: 'Dr. Wijaya' },
+    { hari: 'Kamis', mata_kuliah: 'Rekayasa Perangkat Lunak', jam_mulai: '08:00', jam_selesai: '10:00', ruang: 'Ruang 302', dosen: 'Prof. Pratama' },
+    { hari: 'Kamis', mata_kuliah: 'Kecerdasan Buatan', jam_mulai: '13:30', jam_selesai: '15:30', ruang: 'Lab AI', dosen: 'Dr. Wijaya' },
+    { hari: 'Jumat', mata_kuliah: 'Interaksi Manusia & Komputer', jam_mulai: '09:00', jam_selesai: '10:30', ruang: 'Ruang 202', dosen: 'Prof. Pratama' },
+    { hari: 'Jumat', mata_kuliah: 'Praktikum Basis Data', jam_mulai: '11:00', jam_selesai: '13:00', ruang: 'Lab Komputer B', dosen: 'Dr. Wijaya' },
+    { hari: 'Sabtu', mata_kuliah: 'Statistika', jam_mulai: '08:00', jam_selesai: '10:00', ruang: 'Ruang 102', dosen: 'Prof. Pratama' },
   ];
 
   const insertJadwal = db.prepare(
@@ -54,7 +55,10 @@ if (existingTugas.count > 0) {
   for (let i = 0; i < 14; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() + i);
-    dates.push(d.toISOString().split('T')[0]);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    dates.push(`${y}-${m}-${day}`);
   }
 
   const tugasData = [

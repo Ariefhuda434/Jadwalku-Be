@@ -1,6 +1,9 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'rahasia_pengingat_jadwal_2024';
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  console.warn('⚠️  PERINGATAN: JWT_SECRET tidak diatur di environment! Gunakan string acak yang aman.');
+  return 'rahasia_pengingat_jadwal_2024';
+})();
 
 function verifyToken(req, res, next) {
   const authHeader = req.headers['authorization'];

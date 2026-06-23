@@ -1,12 +1,14 @@
 const express = require('express');
 const db = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { generateNotifications } = require('../notificationService');
 
 const router = express.Router();
 
 router.use(verifyToken);
 
 router.get('/', (req, res) => {
+  generateNotifications();
   const notifications = db.prepare(
     'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC'
   ).all(req.user.id);

@@ -7,9 +7,25 @@ const router = express.Router();
 router.use(verifyToken);
 
 router.get('/', (req, res) => {
-  const tugas = db.prepare(
-    'SELECT * FROM tugas WHERE user_id = ? ORDER BY deadline ASC'
-  ).all(req.user.id);
+  const { search, status } = req.query;
+
+  let query = "SELECT * FROM tugas WHERE user_id = ?";
+  const params = [req.user.id];
+
+  if (search && search.trim()) {
+    const keyword = `%${search.trim()}%`;
+    query += " AND (judul LIKE ? OR mata_kuliah LIKE ? OR deskripsi LIKE ?)";
+    params.push(keyword, keyword, keyword);
+  }
+
+  if (status && ['pending', 'selesai'].includes(status)) {
+    query += " AND status = ?";
+    params.push(status);
+  }
+
+  query += " ORDER BY deadline ASC";
+
+  const tugas = db.prepare(query).all(...params);
 
   res.json(tugas);
 });
