@@ -15,36 +15,41 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { mata_kuliah, judul, deskripsi, deadline } = req.body;
+  const { mata_kuliah, judul, deskripsi, deadline, prioritas } = req.body;
 
   if (!mata_kuliah || !judul || !deadline) {
     return res.status(400).json({ message: 'Mata_kuliah, judul, dan deadline wajib diisi.' });
   }
 
+  const p = ['rendah', 'sedang', 'tinggi'].includes(prioritas) ? prioritas : 'sedang';
+
   const result = db.prepare(
-    'INSERT INTO tugas (user_id, mata_kuliah, judul, deskripsi, deadline) VALUES (?, ?, ?, ?, ?)'
-  ).run(req.user.id, mata_kuliah, judul, deskripsi || '', deadline);
+    'INSERT INTO tugas (user_id, mata_kuliah, judul, deskripsi, deadline, prioritas) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(req.user.id, mata_kuliah, judul, deskripsi || '', deadline, p);
 
   const tugas = db.prepare('SELECT * FROM tugas WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json(tugas);
 });
 
 router.put('/:id', (req, res) => {
-  const { mata_kuliah, judul, deskripsi, deadline, status } = req.body;
+  const { mata_kuliah, judul, deskripsi, deadline, status, prioritas } = req.body;
 
   const existing = db.prepare('SELECT * FROM tugas WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
   if (!existing) {
     return res.status(404).json({ message: 'Tugas tidak ditemukan.' });
   }
 
+  const p = prioritas !== undefined && ['rendah', 'sedang', 'tinggi'].includes(prioritas) ? prioritas : existing.prioritas;
+
   db.prepare(
-    'UPDATE tugas SET mata_kuliah = ?, judul = ?, deskripsi = ?, deadline = ?, status = ? WHERE id = ? AND user_id = ?'
+    'UPDATE tugas SET mata_kuliah = ?, judul = ?, deskripsi = ?, deadline = ?, status = ?, prioritas = ? WHERE id = ? AND user_id = ?'
   ).run(
     mata_kuliah || existing.mata_kuliah,
     judul || existing.judul,
     deskripsi !== undefined ? deskripsi : existing.deskripsi,
     deadline || existing.deadline,
     status || existing.status,
+    p,
     req.params.id,
     req.user.id
   );

@@ -1,7 +1,9 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '..', 'database.sqlite');
+const dbPath = process.env.DATABASE_PATH
+  ? path.resolve(__dirname, '..', process.env.DATABASE_PATH)
+  : path.join(__dirname, '..', 'database.sqlite');
 const db = new Database(dbPath);
 
 db.pragma('journal_mode = WAL');
@@ -37,6 +39,7 @@ db.exec(`
     deskripsi TEXT DEFAULT '',
     deadline DATETIME NOT NULL,
     status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'selesai')),
+    prioritas TEXT DEFAULT 'sedang' CHECK(prioritas IN ('rendah', 'sedang', 'tinggi')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
@@ -53,5 +56,11 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 `);
+
+try {
+  db.exec("ALTER TABLE tugas ADD COLUMN prioritas TEXT DEFAULT 'sedang'");
+} catch {
+  // Kolom sudah ada
+}
 
 module.exports = db;

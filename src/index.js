@@ -1,3 +1,4 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '..', '..', '.env') });
 const express = require('express');
 const cors = require('cors');
 const db = require('./database');
@@ -75,5 +76,6 @@ function generateNotifications() {
 
 app.listen(PORT, () => {
   generateNotifications();
+  setInterval(generateNotifications, 6 * 60 * 60 * 1000);
   console.log(`Server berjalan di http://localhost:${PORT}`);
 });
