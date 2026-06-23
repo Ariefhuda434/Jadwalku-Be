@@ -1,6 +1,7 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '..', '..', '.env') });
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
 const db = require('./database');
 
 const authRoutes = require('./routes/auth');
@@ -9,10 +10,17 @@ const tugasRoutes = require('./routes/tugas');
 const dashboardRoutes = require('./routes/dashboard');
 const searchRoutes = require('./routes/search');
 const notificationRoutes = require('./routes/notifications');
+const groupsRoutes = require('./routes/groups');
+const announcementsRoutes = require('./routes/announcements');
 const { generateNotifications } = require('./notificationService');
+const setupSocket = require('./socket');
 
 const app = express();
+const server = http.createServer(app);
+const io = setupSocket(server);
 const PORT = process.env.PORT || 3001;
+
+app.set('io', io);
 
 app.use(cors());
 app.use(express.json());
@@ -23,12 +31,14 @@ app.use('/api/tugas', tugasRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/groups', groupsRoutes);
+app.use('/api/groups/:id/announcements', announcementsRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'API Pengingat Jadwal Kuliah & Tugas berjalan.' });
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   generateNotifications();
   setInterval(generateNotifications, 6 * 60 * 60 * 1000);
   console.log(`Server berjalan di http://localhost:${PORT}`);
