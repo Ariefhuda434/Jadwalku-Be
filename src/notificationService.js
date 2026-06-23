@@ -1,4 +1,5 @@
 const db = require('./database');
+const { sendPushToUser } = require('./pushService');
 
 function getLocalDate(date) {
   const y = date.getFullYear();
@@ -33,6 +34,8 @@ function generateNotifications() {
         db.prepare(
           "INSERT INTO notifications (user_id, title, message, type, related_id) VALUES (?, ?, ?, 'deadline', ?)"
         ).run(user.id, 'Deadline Tugas Besok', `Deadline besok: ${t.judul}`, t.id);
+
+        sendPushToUser(user.id, 'Deadline Tugas Besok', `Deadline besok: ${t.judul}`);
       }
     }
 
@@ -49,6 +52,8 @@ function generateNotifications() {
         db.prepare(
           "INSERT INTO notifications (user_id, title, message, type, related_id) VALUES (?, ?, ?, 'jadwal', ?)"
         ).run(user.id, 'Jadwal Hari Ini', `Jadwal ${j.mata_kuliah} hari ini pukul ${j.jam_mulai}`, j.id);
+
+        sendPushToUser(user.id, 'Jadwal Hari Ini', `Jadwal ${j.mata_kuliah} hari ini pukul ${j.jam_mulai}`);
       }
     }
   }

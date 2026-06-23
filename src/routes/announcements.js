@@ -1,6 +1,8 @@
 const express = require('express');
 const db = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { sendPushToUser } = require('../pushService');
+const { sendMessage, getStatus } = require('../whatsappService');
 
 const router = express.Router({ mergeParams: true });
 
@@ -86,6 +88,13 @@ router.post('/', (req, res) => {
     const io = req.app.get('io');
     if (io) {
       io.to(`user:${member.user_id}`).emit('notification:new', notification);
+    }
+
+    sendPushToUser(member.user_id, title.trim(), message.trim());
+
+    const memberData = db.prepare('SELECT phone FROM users WHERE id = ?').get(member.user_id);
+    if (memberData && memberData.phone && getStatus().status === 'connected') {
+      sendMessage(memberData.phone, `📢 *${title.trim()}*\n\n${message.trim()}\n\n— ${announcement.author_name}`).catch(() => {});
     }
   }
 

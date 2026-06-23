@@ -12,8 +12,12 @@ const searchRoutes = require('./routes/search');
 const notificationRoutes = require('./routes/notifications');
 const groupsRoutes = require('./routes/groups');
 const announcementsRoutes = require('./routes/announcements');
+const pushRoutes = require('./routes/push');
+const profileRoutes = require('./routes/profile');
+const whatsappRoutes = require('./routes/whatsapp');
 const { generateNotifications } = require('./notificationService');
 const setupSocket = require('./socket');
+const { initWhatsApp } = require('./whatsappService');
 
 const app = express();
 const server = http.createServer(app);
@@ -33,6 +37,9 @@ app.use('/api/search', searchRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/groups', groupsRoutes);
 app.use('/api/groups/:id/announcements', announcementsRoutes);
+app.use('/api/push', pushRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/whatsapp', whatsappRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'API Pengingat Jadwal Kuliah & Tugas berjalan.' });
@@ -41,5 +48,6 @@ app.get('/', (req, res) => {
 server.listen(PORT, () => {
   generateNotifications();
   setInterval(generateNotifications, 6 * 60 * 60 * 1000);
+  initWhatsApp().catch(() => {});
   console.log(`Server berjalan di http://localhost:${PORT}`);
 });

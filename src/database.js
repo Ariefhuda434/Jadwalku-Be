@@ -88,6 +88,17 @@ db.exec(`
     FOREIGN KEY (group_id) REFERENCES groups_table(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    endpoint TEXT NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, endpoint)
+  );
 `);
 
 try {
@@ -98,6 +109,12 @@ try {
 
 try {
   db.exec("ALTER TABLE jadwal ADD COLUMN group_id INTEGER REFERENCES groups_table(id) ON DELETE SET NULL");
+} catch {
+  // Kolom sudah ada
+}
+
+try {
+  db.exec("ALTER TABLE users ADD COLUMN phone TEXT DEFAULT ''");
 } catch {
   // Kolom sudah ada
 }
