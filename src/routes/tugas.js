@@ -8,7 +8,10 @@ const router = express.Router();
 router.use(verifyToken);
 
 router.get('/', (req, res) => {
-  const { search, status } = req.query;
+  const { search, status, page: pageStr, limit: limitStr } = req.query;
+  const usePagination = pageStr !== undefined;
+  const page = Math.max(1, parseInt(pageStr) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(limitStr) || 50));
 
   const personal = db.prepare(`
     SELECT t.*, NULL as group_name, t.status as submission_status,
@@ -44,6 +47,13 @@ router.get('/', (req, res) => {
 
   all.sort((a, b) => (a.deadline || '').localeCompare(b.deadline || ''));
 
+  if (usePagination) {
+    const total = all.length;
+    const totalPages = Math.ceil(total / limit);
+    const paginated = all.slice((page - 1) * limit, page * limit);
+    return res.json({ data: paginated, pagination: { page, limit, total, totalPages } });
+  }
+
   res.json(all);
 });
 
@@ -65,6 +75,10 @@ router.post('/', (req, res) => {
   }
 
   const p = ['rendah', 'sedang', 'tinggi'].includes(prioritas) ? prioritas : 'sedang';
+
+  if (deadline && new Date(deadline) < new Date(new Date().toDateString())) {
+    return res.status(400).json({ message: 'Deadline tidak boleh sebelum hari ini.' });
+  }
 
   const result = db.prepare(
     'INSERT INTO tugas (user_id, mata_kuliah, judul, deskripsi, deadline, prioritas, group_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -109,6 +123,11 @@ router.put('/:id', (req, res) => {
   }
 
   const p = prioritas !== undefined && ['rendah', 'sedang', 'tinggi'].includes(prioritas) ? prioritas : existing.prioritas;
+  const newDeadline = deadline || existing.deadline;
+
+  if (newDeadline && new Date(newDeadline) < new Date(new Date().toDateString())) {
+    return res.status(400).json({ message: 'Deadline tidak boleh sebelum hari ini.' });
+  }
 
   db.prepare(
     'UPDATE tugas SET mata_kuliah = ?, judul = ?, deskripsi = ?, deadline = ?, status = ?, prioritas = ? WHERE id = ?'
@@ -116,7 +135,7 @@ router.put('/:id', (req, res) => {
     mata_kuliah || existing.mata_kuliah,
     judul || existing.judul,
     deskripsi !== undefined ? deskripsi : existing.deskripsi,
-    deadline || existing.deadline,
+    newDeadline,
     status || existing.status,
     p,
     req.params.id

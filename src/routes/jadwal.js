@@ -8,7 +8,10 @@ const router = express.Router();
 router.use(verifyToken);
 
 router.get('/', (req, res) => {
-  const { search, hari, group_id } = req.query;
+  const { search, hari, group_id, page: pageStr, limit: limitStr } = req.query;
+  const usePagination = pageStr !== undefined;
+  const page = Math.max(1, parseInt(pageStr) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(limitStr) || 50));
 
   if (group_id) {
     const member = db.prepare(
@@ -73,6 +76,13 @@ router.get('/', (req, res) => {
     return a.jam_mulai.localeCompare(b.jam_mulai);
   });
 
+  if (usePagination) {
+    const total = merged.length;
+    const totalPages = Math.ceil(total / limit);
+    const paginated = merged.slice((page - 1) * limit, page * limit);
+    return res.json({ data: paginated, pagination: { page, limit, total, totalPages } });
+  }
+
   res.json(merged);
 });
 
@@ -123,6 +133,10 @@ router.post('/', (req, res) => {
     return res.status(400).json({ message: 'Hari, mata_kuliah, jam_mulai, dan jam_selesai wajib diisi.' });
   }
 
+  if (toMinutes(jam_mulai) >= toMinutes(jam_selesai)) {
+    return res.status(400).json({ message: 'Jam selesai harus setelah jam mulai.' });
+  }
+
   if (group_id) {
     const member = db.prepare(
       'SELECT * FROM group_members WHERE group_id = ? AND user_id = ? AND role = ?'
@@ -171,6 +185,10 @@ router.put('/:id', (req, res) => {
   const newHari = hari || existing.hari;
   const newJamMulai = jam_mulai || existing.jam_mulai;
   const newJamSelesai = jam_selesai || existing.jam_selesai;
+
+  if (toMinutes(newJamMulai) >= toMinutes(newJamSelesai)) {
+    return res.status(400).json({ message: 'Jam selesai harus setelah jam mulai.' });
+  }
 
   const conflicts = checkConflict({
     hari: newHari, jam_mulai: newJamMulai, jam_selesai: newJamSelesai,

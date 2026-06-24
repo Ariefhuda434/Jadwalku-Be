@@ -125,6 +125,13 @@ try {
   // Kolom sudah ada
 }
 
+try {
+  db.exec("ALTER TABLE users ADD COLUMN reset_token TEXT DEFAULT NULL");
+  db.exec("ALTER TABLE users ADD COLUMN reset_token_expires DATETIME DEFAULT NULL");
+} catch {
+  // Kolom sudah ada
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS tugas_submissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

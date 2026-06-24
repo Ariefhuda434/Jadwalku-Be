@@ -8,7 +8,24 @@ const router = express.Router();
 router.use(verifyToken);
 
 router.get('/', (req, res) => {
+  const { page: pageStr, limit: limitStr } = req.query;
+  const usePagination = pageStr !== undefined;
+
   generateNotifications();
+
+  if (usePagination) {
+    const page = Math.max(1, parseInt(pageStr) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(limitStr) || 20));
+    const total = db.prepare(
+      'SELECT COUNT(*) as count FROM notifications WHERE user_id = ?'
+    ).get(req.user.id).count;
+    const totalPages = Math.ceil(total / limit);
+    const notifications = db.prepare(
+      'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
+    ).all(req.user.id, limit, (page - 1) * limit);
+    return res.json({ data: notifications, pagination: { page, limit, total, totalPages } });
+  }
+
   const notifications = db.prepare(
     'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC'
   ).all(req.user.id);
