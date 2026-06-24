@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { sanitize } = require('../sanitize');
 
 const router = express.Router();
 
@@ -75,8 +76,48 @@ router.get('/', (req, res) => {
   res.json(merged);
 });
 
+function toMinutes(t) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function checkConflict({ hari, jam_mulai, jam_selesai, userId, groupId, excludeId }) {
+  let query, params;
+  if (groupId) {
+    query = `SELECT * FROM jadwal WHERE group_id = ? AND hari = ? AND id != ?`;
+    params = [groupId, hari, excludeId || -1];
+  } else {
+    query = `SELECT * FROM jadwal WHERE user_id = ? AND group_id IS NULL AND hari = ? AND id != ?`;
+    params = [userId, hari, excludeId || -1];
+  }
+
+  const schedules = db.prepare(query).all(...params);
+  const newStart = toMinutes(jam_mulai);
+  const newEnd = toMinutes(jam_selesai);
+
+  return schedules.filter((s) => {
+    const sStart = toMinutes(s.jam_mulai);
+    const sEnd = toMinutes(s.jam_selesai);
+    return newStart < sEnd && sStart < newEnd;
+  });
+}
+
+router.get('/check-conflict', (req, res) => {
+  const { hari, jam_mulai, jam_selesai, group_id, exclude_id } = req.query;
+  if (!hari || !jam_mulai || !jam_selesai) {
+    return res.status(400).json({ message: 'hari, jam_mulai, jam_selesai wajib diisi.' });
+  }
+  const conflicts = checkConflict({
+    hari, jam_mulai, jam_selesai,
+    userId: req.user.id,
+    groupId: group_id || null,
+    excludeId: exclude_id || null,
+  });
+  res.json({ conflicts });
+});
+
 router.post('/', (req, res) => {
-  const { hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen, group_id } = req.body;
+  const { hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen, group_id } = sanitize(req.body, ['mata_kuliah', 'ruang', 'dosen']);
 
   if (!hari || !mata_kuliah || !jam_mulai || !jam_selesai) {
     return res.status(400).json({ message: 'Hari, mata_kuliah, jam_mulai, dan jam_selesai wajib diisi.' });
@@ -92,16 +133,23 @@ router.post('/', (req, res) => {
     }
   }
 
+  const conflicts = checkConflict({
+    hari, jam_mulai, jam_selesai,
+    userId: req.user.id,
+    groupId: group_id || null,
+    excludeId: null,
+  });
+
   const result = db.prepare(
     'INSERT INTO jadwal (user_id, hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   ).run(req.user.id, hari, mata_kuliah, jam_mulai, jam_selesai, ruang || '', dosen || '', group_id || null);
 
   const jadwal = db.prepare('SELECT * FROM jadwal WHERE id = ?').get(result.lastInsertRowid);
-  res.status(201).json(jadwal);
+  res.status(201).json({ jadwal, conflicts });
 });
 
 router.put('/:id', (req, res) => {
-  const { hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen } = req.body;
+  const { hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen } = sanitize(req.body, ['mata_kuliah', 'ruang', 'dosen']);
 
   const existing = db.prepare('SELECT * FROM jadwal WHERE id = ?').get(req.params.id);
   if (!existing) {
@@ -120,20 +168,31 @@ router.put('/:id', (req, res) => {
     return res.status(404).json({ message: 'Jadwal tidak ditemukan.' });
   }
 
+  const newHari = hari || existing.hari;
+  const newJamMulai = jam_mulai || existing.jam_mulai;
+  const newJamSelesai = jam_selesai || existing.jam_selesai;
+
+  const conflicts = checkConflict({
+    hari: newHari, jam_mulai: newJamMulai, jam_selesai: newJamSelesai,
+    userId: req.user.id,
+    groupId: existing.group_id || null,
+    excludeId: existing.id,
+  });
+
   db.prepare(
     'UPDATE jadwal SET hari = ?, mata_kuliah = ?, jam_mulai = ?, jam_selesai = ?, ruang = ?, dosen = ? WHERE id = ?'
   ).run(
-    hari || existing.hari,
+    newHari,
     mata_kuliah || existing.mata_kuliah,
-    jam_mulai || existing.jam_mulai,
-    jam_selesai || existing.jam_selesai,
+    newJamMulai,
+    newJamSelesai,
     ruang !== undefined ? ruang : existing.ruang,
     dosen !== undefined ? dosen : existing.dosen,
     req.params.id
   );
 
   const jadwal = db.prepare('SELECT * FROM jadwal WHERE id = ?').get(req.params.id);
-  res.json(jadwal);
+  res.json({ jadwal, conflicts });
 });
 
 router.delete('/:id', (req, res) => {

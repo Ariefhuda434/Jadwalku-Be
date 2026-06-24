@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { sanitize } = require('../sanitize');
 
 const router = express.Router();
 
@@ -47,7 +48,7 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { mata_kuliah, judul, deskripsi, deadline, prioritas, group_id } = req.body;
+  const { mata_kuliah, judul, deskripsi, deadline, prioritas, group_id } = sanitize(req.body, ['mata_kuliah', 'judul', 'deskripsi']);
 
   if (!mata_kuliah || !judul || !deadline) {
     return res.status(400).json({ message: 'Mata_kuliah, judul, dan deadline wajib diisi.' });
@@ -88,7 +89,7 @@ router.post('/', (req, res) => {
 });
 
 router.put('/:id', (req, res) => {
-  const { mata_kuliah, judul, deskripsi, deadline, status, prioritas } = req.body;
+  const { mata_kuliah, judul, deskripsi, deadline, status, prioritas } = sanitize(req.body, ['mata_kuliah', 'judul', 'deskripsi']);
 
   const existing = db.prepare('SELECT * FROM tugas WHERE id = ?').get(req.params.id);
   if (!existing) {

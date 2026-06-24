@@ -32,9 +32,24 @@ router.get('/', (req, res) => {
     return (dayOrder[a.hari] || 99) - (dayOrder[b.hari] || 99) || a.jam_mulai.localeCompare(b.jam_mulai);
   });
 
-  const tugas = db.prepare(
-    `SELECT * FROM tugas WHERE user_id = ? AND (judul LIKE ? OR mata_kuliah LIKE ? OR deskripsi LIKE ?) ORDER BY deadline ASC`
+  const personalTugas = db.prepare(
+    `SELECT *, 0 as is_group_task, NULL as group_name, NULL as creator_name
+     FROM tugas WHERE user_id = ? AND group_id IS NULL
+     AND (judul LIKE ? OR mata_kuliah LIKE ? OR deskripsi LIKE ?) ORDER BY deadline ASC`
   ).all(req.user.id, keyword, keyword, keyword);
+
+  const groupTugas = db.prepare(`
+    SELECT t.*, 1 as is_group_task, g.name as group_name, u.username as creator_name
+    FROM tugas t
+    JOIN groups_table g ON g.id = t.group_id
+    JOIN users u ON u.id = t.user_id
+    JOIN group_members gm ON gm.group_id = t.group_id AND gm.user_id = ?
+    WHERE t.group_id IS NOT NULL
+    AND (t.judul LIKE ? OR t.mata_kuliah LIKE ? OR t.deskripsi LIKE ?)
+    ORDER BY t.deadline ASC
+  `).all(req.user.id, keyword, keyword, keyword);
+
+  const tugas = [...personalTugas, ...groupTugas];
 
   res.json({ jadwal, tugas });
 });

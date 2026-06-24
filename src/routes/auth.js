@@ -3,17 +3,18 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../database');
 const { JWT_SECRET } = require('../middleware/auth');
+const { sanitize } = require('../sanitize');
 
 const router = express.Router();
 
 router.post('/register', (req, res) => {
-  const { username, email, password } = req.body;
+  const { username, email, password } = sanitize(req.body, ['username', 'email']);
 
   if (!username || !email || !password) {
     return res.status(400).json({ message: 'Semua field harus diisi.' });
   }
 
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+  const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email);
   if (existing) {
     return res.status(409).json({ message: 'Email sudah terdaftar.' });
   }
@@ -43,7 +44,7 @@ router.post('/login', (req, res) => {
     return res.status(400).json({ message: 'Email dan password harus diisi.' });
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email);
   if (!user) {
     return res.status(401).json({ message: 'Email atau password salah.' });
   }

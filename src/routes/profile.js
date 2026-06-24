@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { sanitize } = require('../sanitize');
 
 const router = express.Router();
 
@@ -17,13 +18,13 @@ router.get('/', (req, res) => {
 });
 
 router.put('/', (req, res) => {
-  const { username, email, phone } = req.body;
+  const { username, email, phone } = sanitize(req.body, ['username', 'email', 'phone']);
 
   if (username !== undefined) {
     db.prepare('UPDATE users SET username = ? WHERE id = ?').run(username, req.user.id);
   }
   if (email !== undefined) {
-    const existing = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email, req.user.id);
+    const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id != ?').get(email, req.user.id);
     if (existing) return res.status(409).json({ message: 'Email sudah digunakan.' });
     db.prepare('UPDATE users SET email = ? WHERE id = ?').run(email, req.user.id);
   }

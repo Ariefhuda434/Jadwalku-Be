@@ -3,6 +3,7 @@ const db = require('../database');
 const { verifyToken } = require('../middleware/auth');
 const { sendPushToUser } = require('../pushService');
 const { sendMessage, getStatus } = require('../whatsappService');
+const { sanitize } = require('../sanitize');
 
 const router = express.Router({ mergeParams: true });
 
@@ -45,7 +46,7 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   const { id } = req.params;
-  const { title, message, type } = req.body;
+  const { title, message, type } = sanitize(req.body, ['title', 'message']);
 
   if (!isGroupAdmin(req.user.id, id)) {
     return res.status(403).json({ message: 'Hanya admin yang bisa membuat pengumuman.' });

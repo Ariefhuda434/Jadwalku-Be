@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const db = require('../database');
 const { verifyToken } = require('../middleware/auth');
+const { sanitize } = require('../sanitize');
 
 const router = express.Router();
 
@@ -51,7 +52,7 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { name, description } = req.body;
+  const { name, description } = sanitize(req.body, ['name', 'description']);
 
   if (!name || !name.trim()) {
     return res.status(400).json({ message: 'Nama grup wajib diisi.' });
@@ -99,7 +100,7 @@ router.get('/:id', (req, res) => {
 });
 
 router.put('/:id', (req, res) => {
-  const { name, description } = req.body;
+  const { name, description } = sanitize(req.body, ['name', 'description']);
 
   if (!isGroupAdmin(req.user.id, req.params.id)) {
     return res.status(403).json({ message: 'Hanya admin grup yang bisa mengedit.' });
