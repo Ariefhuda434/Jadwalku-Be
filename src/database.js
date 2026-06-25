@@ -167,4 +167,33 @@ try {
   // Sudah ada
 }
 
+try {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS semesters (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL,
+      is_active INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+} catch {
+  // Sudah ada
+}
+
+try {
+  db.exec("ALTER TABLE jadwal ADD COLUMN semester_id INTEGER REFERENCES semesters(id) ON DELETE SET NULL");
+} catch {
+  // Kolom sudah ada
+}
+
+try {
+  db.exec("ALTER TABLE tugas ADD COLUMN semester_id INTEGER REFERENCES semesters(id) ON DELETE SET NULL");
+} catch {
+  // Kolom sudah ada
+}
+
 module.exports = db;

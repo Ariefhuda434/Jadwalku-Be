@@ -8,16 +8,22 @@ const router = express.Router();
 router.use(verifyToken);
 
 router.get('/', (req, res) => {
-  const { search, status, page: pageStr, limit: limitStr } = req.query;
+  const { search, status, semester_id, page: pageStr, limit: limitStr } = req.query;
   const usePagination = pageStr !== undefined;
   const page = Math.max(1, parseInt(pageStr) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(limitStr) || 50));
 
-  const personal = db.prepare(`
+  let personalQuery = `
     SELECT t.*, NULL as group_name, t.status as submission_status,
            0 as is_group_task, NULL as creator_name
     FROM tugas t WHERE t.user_id = ?
-  `).all(req.user.id);
+  `;
+  const personalParams = [req.user.id];
+  if (semester_id) {
+    personalQuery += " AND t.semester_id = ?";
+    personalParams.push(semester_id);
+  }
+  const personal = db.prepare(personalQuery).all(...personalParams);
 
   const groupTasks = db.prepare(`
     SELECT t.*, g.name as group_name,
@@ -58,7 +64,7 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { mata_kuliah, judul, deskripsi, deadline, prioritas, group_id } = sanitize(req.body, ['mata_kuliah', 'judul', 'deskripsi']);
+  const { mata_kuliah, judul, deskripsi, deadline, prioritas, group_id, semester_id } = sanitize(req.body, ['mata_kuliah', 'judul', 'deskripsi']);
 
   if (!mata_kuliah || !judul || !deadline) {
     return res.status(400).json({ message: 'Mata_kuliah, judul, dan deadline wajib diisi.' });
@@ -80,9 +86,10 @@ router.post('/', (req, res) => {
     return res.status(400).json({ message: 'Deadline tidak boleh sebelum hari ini.' });
   }
 
+  const semesterVal = semester_id ? parseInt(semester_id) : null;
   const result = db.prepare(
-    'INSERT INTO tugas (user_id, mata_kuliah, judul, deskripsi, deadline, prioritas, group_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(req.user.id, mata_kuliah, judul, deskripsi || '', deadline, p, group_id || null);
+    'INSERT INTO tugas (user_id, mata_kuliah, judul, deskripsi, deadline, prioritas, group_id, semester_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(req.user.id, mata_kuliah, judul, deskripsi || '', deadline, p, group_id || null, semesterVal);
 
   if (group_id) {
     const members = db.prepare(
@@ -103,7 +110,7 @@ router.post('/', (req, res) => {
 });
 
 router.put('/:id', (req, res) => {
-  const { mata_kuliah, judul, deskripsi, deadline, status, prioritas } = sanitize(req.body, ['mata_kuliah', 'judul', 'deskripsi']);
+  const { mata_kuliah, judul, deskripsi, deadline, status, prioritas, semester_id } = sanitize(req.body, ['mata_kuliah', 'judul', 'deskripsi']);
 
   const existing = db.prepare('SELECT * FROM tugas WHERE id = ?').get(req.params.id);
   if (!existing) {
@@ -129,8 +136,9 @@ router.put('/:id', (req, res) => {
     return res.status(400).json({ message: 'Deadline tidak boleh sebelum hari ini.' });
   }
 
+  const semesterVal = semester_id !== undefined ? (semester_id ? parseInt(semester_id) : null) : existing.semester_id;
   db.prepare(
-    'UPDATE tugas SET mata_kuliah = ?, judul = ?, deskripsi = ?, deadline = ?, status = ?, prioritas = ? WHERE id = ?'
+    'UPDATE tugas SET mata_kuliah = ?, judul = ?, deskripsi = ?, deadline = ?, status = ?, prioritas = ?, semester_id = ? WHERE id = ?'
   ).run(
     mata_kuliah || existing.mata_kuliah,
     judul || existing.judul,
@@ -138,6 +146,7 @@ router.put('/:id', (req, res) => {
     newDeadline,
     status || existing.status,
     p,
+    semesterVal,
     req.params.id
   );
 

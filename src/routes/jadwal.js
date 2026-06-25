@@ -8,7 +8,7 @@ const router = express.Router();
 router.use(verifyToken);
 
 router.get('/', (req, res) => {
-  const { search, hari, group_id, page: pageStr, limit: limitStr } = req.query;
+  const { search, hari, group_id, semester_id, page: pageStr, limit: limitStr } = req.query;
   const usePagination = pageStr !== undefined;
   const page = Math.max(1, parseInt(pageStr) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(limitStr) || 50));
@@ -54,6 +54,11 @@ router.get('/', (req, res) => {
     personalParams.push(keyword, keyword, keyword);
     groupQuery += " AND (j.mata_kuliah LIKE ? OR j.dosen LIKE ? OR j.ruang LIKE ?)";
     groupParams.push(keyword, keyword, keyword);
+  }
+
+  if (semester_id) {
+    personalQuery += " AND j.semester_id = ?";
+    personalParams.push(semester_id);
   }
 
   if (hari) {
@@ -129,7 +134,7 @@ router.get('/check-conflict', (req, res) => {
 const validTipe = ['kuliah', 'praktikum', 'seminar', 'responsi'];
 
 router.post('/', (req, res) => {
-  const { hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen, group_id, tipe } = sanitize(req.body, ['mata_kuliah', 'ruang', 'dosen']);
+  const { hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen, group_id, tipe, semester_id } = sanitize(req.body, ['mata_kuliah', 'ruang', 'dosen']);
 
   if (!hari || !mata_kuliah || !jam_mulai || !jam_selesai) {
     return res.status(400).json({ message: 'Hari, mata_kuliah, jam_mulai, dan jam_selesai wajib diisi.' });
@@ -157,16 +162,17 @@ router.post('/', (req, res) => {
   });
 
   const tipeVal = validTipe.includes(tipe) ? tipe : 'kuliah';
+  const semesterVal = semester_id ? parseInt(semester_id) : null;
   const result = db.prepare(
-    'INSERT INTO jadwal (user_id, hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen, group_id, tipe) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(req.user.id, hari, mata_kuliah, jam_mulai, jam_selesai, ruang || '', dosen || '', group_id || null, tipeVal);
+    'INSERT INTO jadwal (user_id, hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen, group_id, tipe, semester_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(req.user.id, hari, mata_kuliah, jam_mulai, jam_selesai, ruang || '', dosen || '', group_id || null, tipeVal, semesterVal);
 
   const jadwal = db.prepare('SELECT * FROM jadwal WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json({ jadwal, conflicts });
 });
 
 router.put('/:id', (req, res) => {
-  const { hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen, tipe } = sanitize(req.body, ['mata_kuliah', 'ruang', 'dosen']);
+  const { hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen, tipe, semester_id } = sanitize(req.body, ['mata_kuliah', 'ruang', 'dosen']);
 
   const existing = db.prepare('SELECT * FROM jadwal WHERE id = ?').get(req.params.id);
   if (!existing) {
@@ -201,8 +207,9 @@ router.put('/:id', (req, res) => {
   });
 
   const tipeVal = tipe !== undefined ? (validTipe.includes(tipe) ? tipe : existing.tipe) : existing.tipe;
+  const semesterVal = semester_id !== undefined ? (semester_id ? parseInt(semester_id) : null) : existing.semester_id;
   db.prepare(
-    'UPDATE jadwal SET hari = ?, mata_kuliah = ?, jam_mulai = ?, jam_selesai = ?, ruang = ?, dosen = ?, tipe = ? WHERE id = ?'
+    'UPDATE jadwal SET hari = ?, mata_kuliah = ?, jam_mulai = ?, jam_selesai = ?, ruang = ?, dosen = ?, tipe = ?, semester_id = ? WHERE id = ?'
   ).run(
     newHari,
     mata_kuliah || existing.mata_kuliah,
@@ -211,6 +218,7 @@ router.put('/:id', (req, res) => {
     ruang !== undefined ? ruang : existing.ruang,
     dosen !== undefined ? dosen : existing.dosen,
     tipeVal,
+    semesterVal,
     req.params.id
   );
 
