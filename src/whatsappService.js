@@ -77,7 +77,11 @@ async function initWhatsApp(io) {
         if (isReplaced) {
           console.log('[WA] Session digantikan device lain, reset auth...');
           clearAuth();
-          console.log('[WA] Auth direset. Scan QR baru untuk konek ulang.');
+          console.log('[WA] Auth direset. Mulai ulang untuk QR baru...');
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(() => {
+            if (!isDestroyed) initWhatsApp(io);
+          }, 2000);
         } else if (!isLoggedOut) {
           console.log('[WA] Terputus, reconnect dalam 5s...');
           if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -85,7 +89,11 @@ async function initWhatsApp(io) {
             if (!isDestroyed) initWhatsApp(io);
           }, 5000);
         } else {
-          console.log('[WA] Terputus (logged out). Scan QR untuk konek ulang.');
+          console.log('[WA] Terputus (logged out). Mulai ulang untuk QR baru...');
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(() => {
+            if (!isDestroyed) initWhatsApp(io);
+          }, 2000);
         }
       }
     }
