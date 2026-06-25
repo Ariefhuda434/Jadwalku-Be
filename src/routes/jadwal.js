@@ -126,8 +126,10 @@ router.get('/check-conflict', (req, res) => {
   res.json({ conflicts });
 });
 
+const validTipe = ['kuliah', 'praktikum', 'seminar', 'responsi'];
+
 router.post('/', (req, res) => {
-  const { hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen, group_id } = sanitize(req.body, ['mata_kuliah', 'ruang', 'dosen']);
+  const { hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen, group_id, tipe } = sanitize(req.body, ['mata_kuliah', 'ruang', 'dosen']);
 
   if (!hari || !mata_kuliah || !jam_mulai || !jam_selesai) {
     return res.status(400).json({ message: 'Hari, mata_kuliah, jam_mulai, dan jam_selesai wajib diisi.' });
@@ -154,16 +156,17 @@ router.post('/', (req, res) => {
     excludeId: null,
   });
 
+  const tipeVal = validTipe.includes(tipe) ? tipe : 'kuliah';
   const result = db.prepare(
-    'INSERT INTO jadwal (user_id, hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(req.user.id, hari, mata_kuliah, jam_mulai, jam_selesai, ruang || '', dosen || '', group_id || null);
+    'INSERT INTO jadwal (user_id, hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen, group_id, tipe) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(req.user.id, hari, mata_kuliah, jam_mulai, jam_selesai, ruang || '', dosen || '', group_id || null, tipeVal);
 
   const jadwal = db.prepare('SELECT * FROM jadwal WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json({ jadwal, conflicts });
 });
 
 router.put('/:id', (req, res) => {
-  const { hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen } = sanitize(req.body, ['mata_kuliah', 'ruang', 'dosen']);
+  const { hari, mata_kuliah, jam_mulai, jam_selesai, ruang, dosen, tipe } = sanitize(req.body, ['mata_kuliah', 'ruang', 'dosen']);
 
   const existing = db.prepare('SELECT * FROM jadwal WHERE id = ?').get(req.params.id);
   if (!existing) {
@@ -197,8 +200,9 @@ router.put('/:id', (req, res) => {
     excludeId: existing.id,
   });
 
+  const tipeVal = tipe !== undefined ? (validTipe.includes(tipe) ? tipe : existing.tipe) : existing.tipe;
   db.prepare(
-    'UPDATE jadwal SET hari = ?, mata_kuliah = ?, jam_mulai = ?, jam_selesai = ?, ruang = ?, dosen = ? WHERE id = ?'
+    'UPDATE jadwal SET hari = ?, mata_kuliah = ?, jam_mulai = ?, jam_selesai = ?, ruang = ?, dosen = ?, tipe = ? WHERE id = ?'
   ).run(
     newHari,
     mata_kuliah || existing.mata_kuliah,
@@ -206,6 +210,7 @@ router.put('/:id', (req, res) => {
     newJamSelesai,
     ruang !== undefined ? ruang : existing.ruang,
     dosen !== undefined ? dosen : existing.dosen,
+    tipeVal,
     req.params.id
   );
 

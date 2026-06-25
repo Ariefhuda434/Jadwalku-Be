@@ -146,6 +146,12 @@ db.exec(`
 `);
 
 try {
+  db.exec("ALTER TABLE jadwal ADD COLUMN tipe TEXT DEFAULT 'kuliah'");
+} catch {
+  // Kolom sudah ada
+}
+
+try {
   db.exec(`
     CREATE TABLE IF NOT EXISTS chat_messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
